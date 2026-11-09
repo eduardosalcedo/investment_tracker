@@ -13,56 +13,109 @@ db.exec(fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8'));
 app.use(express.json({limit:'16kb'}));
 configureSecurity(app);
 const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
-const todo = res => res.status(501).json({error:'Complete this numbered step'});
 
 // S1: health check.
 app.get('/api/health',(req,res)=>res.json({ok:true}));
 
-// S2: Validate credentials. Normalize only email. Query duplicate email safely.
-// await argon2.hash(password,{type:argon2.argon2id}); insert email/hash; return 201 {id,email}.
-// Catch uniqueness conflicts as 409, without leaking SQL or hashes.
-app.post('/api/register',asyncRoute(async(req,res)=>todo(res)));
+const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const bodyOf=req=>(req.body&&typeof req.body==='object'&&!Array.isArray(req.body))?req.body:{};
+const wrap=fn=>new Promise((resolve,reject)=>fn(e=>e?reject(e):resolve()));
 
-// S3: SELECT by normalized email; await argon2.verify(storedHash,password).
-// Invalid credentials -> generic 401. Regenerate, set userId, save, then respond.
-// Promise wrappers: await new Promise((resolve,reject)=>req.session.regenerate(e=>e?reject(e):resolve()));
-// Use the same pattern for session.save. Do not keep the old CSRF token after regeneration.
-app.post('/api/login',asyncRoute(async(req,res)=>todo(res)));
+// S2: register. Only the email is normalized; the password is hashed with Argon2id.
+app.post('/api/register',asyncRoute(async(req,res)=>{
+  const {email:rawEmail,password}=bodyOf(req);
+  if (typeof rawEmail!=='string'||typeof password!=='string') return res.status(400).json({error:'Email and password are required'});
+  const email=rawEmail.trim().toLowerCase();
+  if (email.length<3||email.length>254||!EMAIL_RE.test(email)) return res.status(400).json({error:'Enter a valid email address'});
+  if (password.length<8||password.length>128) return res.status(400).json({error:'Password must be 8-128 characters'});
+  if (db.prepare('SELECT id FROM users WHERE email = ?').get(email)) return res.status(409).json({error:'Email is already registered'});
+  const hash=await argon2.hash(password,{type:argon2.argon2id});
+  try {
+    const result=db.prepare('INSERT INTO users(email,password_hash) VALUES (?,?)').run(email,hash);
+    res.status(201).json({id:Number(result.lastInsertRowid),email});
+  } catch (e) {
+    if (e&&String(e.code).startsWith('SQLITE_CONSTRAINT')) return res.status(409).json({error:'Email is already registered'});
+    throw e;
+  }
+}));
+
+// S3: login. Generic 401 for unknown email or wrong password; new session id on success.
+app.post('/api/login',asyncRoute(async(req,res)=>{
+  const {email:rawEmail,password}=bodyOf(req);
+  if (typeof rawEmail!=='string'||typeof password!=='string') return res.status(400).json({error:'Email and password are required'});
+  const email=rawEmail.trim().toLowerCase();
+  const user=db.prepare('SELECT id,email,password_hash FROM users WHERE email = ?').get(email);
+  let valid=false;
+  if (user) {
+    try { valid=await argon2.verify(user.password_hash,password); } catch { valid=false; }
+  }
+  if (!valid) return res.status(401).json({error:'Invalid email or password'});
+  await wrap(cb=>req.session.regenerate(cb));
+  req.session.userId=user.id;
+  await wrap(cb=>req.session.save(cb));
+  res.json({id:user.id,email:user.email});
+}));
 app.get('/api/me',requireAuth,(req,res)=> {
-  // S4: Return only the session user's {id,email}.
-  todo(res);
+  // S4
+  const user=db.prepare('SELECT id,email FROM users WHERE id = ?').get(req.session.userId);
+  if (!user) return res.status(401).json({error:'Login required'});
+  res.json({id:user.id,email:user.email});
 });
 app.post('/api/logout',requireAuth,(req,res,next)=> {
-  // S5: destroy session; forward an error if needed; clear sid with path '/'; return {ok:true}.
-  todo(res);
+  // S5
+  req.session.destroy(err=> {
+    if (err) return next(err);
+    res.clearCookie('sid',{path:'/'});
+    res.json({ok:true});
+  });
 });
 app.get('/api/categories',requireAuth,(req,res)=> {
-  // S6: SELECT id,name FROM categories ORDER BY id, using all().
-  todo(res);
+  // S6
+  res.json(db.prepare('SELECT id,name FROM categories ORDER BY id').all());
 });
 
-// S7: Write a reusable SELECT with JOIN purchases to categories, aliases matching
-// the API fields, and calculated quantity*unit_price_cents AS costCents.
-// Owner restrictions belong in every record operation, including PUT and DELETE.
+// S7: reusable joined SELECT; every query using it is restricted by owner_id.
+const PURCHASE_SELECT=`SELECT p.id AS id, p.name AS name, p.quantity AS quantity,
+  p.unit_price_cents AS unitPriceCents, p.category_id AS categoryId, c.name AS categoryName,
+  p.quantity * p.unit_price_cents AS costCents
+  FROM purchases p JOIN categories c ON c.id = p.category_id`;
+const listStmt=db.prepare(`${PURCHASE_SELECT} WHERE p.owner_id = ? ORDER BY p.id ASC`);
+const getOwnedStmt=db.prepare(`${PURCHASE_SELECT} WHERE p.id = ? AND p.owner_id = ?`);
+const categoryIds=()=>db.prepare('SELECT id FROM categories ORDER BY id').all().map(r=>r.id);
+const parseId=raw=>/^[1-9]\d{0,14}$/.test(raw)?Number(raw):null;
+
 app.get('/api/purchases',requireAuth,(req,res)=> {
-  // S8: return all owned records in ascending ID order.
-  todo(res);
+  // S8
+  res.json(listStmt.all(req.session.userId));
 });
 app.post('/api/purchases',requireAuth,(req,res)=> {
-  // S9: read category IDs, validatePurchase, INSERT with req.session.userId.
-  // Use result.lastInsertRowid to SELECT the created joined record; return 201.
-  todo(res);
+  // S9
+  const result=validatePurchase(req.body,categoryIds());
+  if (result.error) return res.status(400).json({error:result.error});
+  const v=result.value;
+  const info=db.prepare('INSERT INTO purchases(owner_id,name,quantity,unit_price_cents,category_id) VALUES (?,?,?,?,?)')
+    .run(req.session.userId,v.name,v.quantity,v.unitPriceCents,v.categoryId);
+  res.status(201).json(getOwnedStmt.get(Number(info.lastInsertRowid),req.session.userId));
 });
 app.put('/api/purchases/:id',requireAuth,(req,res)=> {
-  // S10: validate positive integer path ID; lookup using ID AND owner_id.
-  // 404 if not owned/found. Validate all editable fields, then UPDATE with both predicates.
-  // SELECT and return the updated joined record.
-  todo(res);
+  // S10
+  const id=parseId(req.params.id);
+  if (id===null) return res.status(400).json({error:'Invalid purchase ID'});
+  if (!getOwnedStmt.get(id,req.session.userId)) return res.status(404).json({error:'Purchase not found'});
+  const result=validatePurchase(req.body,categoryIds());
+  if (result.error) return res.status(400).json({error:result.error});
+  const v=result.value;
+  db.prepare('UPDATE purchases SET name = ?, quantity = ?, unit_price_cents = ?, category_id = ? WHERE id = ? AND owner_id = ?')
+    .run(v.name,v.quantity,v.unitPriceCents,v.categoryId,id,req.session.userId);
+  res.json(getOwnedStmt.get(id,req.session.userId));
 });
 app.delete('/api/purchases/:id',requireAuth,(req,res)=> {
-  // S11: validate path ID; DELETE WHERE id=? AND owner_id=?.
-  // Check result.changes: 0 -> 404; otherwise {ok:true}.
-  todo(res);
+  // S11
+  const id=parseId(req.params.id);
+  if (id===null) return res.status(400).json({error:'Invalid purchase ID'});
+  const info=db.prepare('DELETE FROM purchases WHERE id = ? AND owner_id = ?').run(id,req.session.userId);
+  if (info.changes===0) return res.status(404).json({error:'Purchase not found'});
+  res.json({ok:true});
 });
 
 app.use('/api',(req,res)=>res.status(404).json({error:'API route not found'}));
