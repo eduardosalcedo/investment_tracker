@@ -15,8 +15,8 @@ configureSecurity(app);
 const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
 const todo = res => res.status(501).json({error:'Complete this numbered step'});
 
-// S1: Implement GET /api/health -> {ok:true}.
-app.get('/api/health',(req,res)=>todo(res));
+// S1: health check.
+app.get('/api/health',(req,res)=>res.json({ok:true}));
 
 // S2: Validate credentials. Normalize only email. Query duplicate email safely.
 // await argon2.hash(password,{type:argon2.argon2id}); insert email/hash; return 201 {id,email}.

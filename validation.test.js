@@ -18,4 +18,27 @@ test('invalid price and category',()=> {
   }
   assert.ok(validatePurchase({name:'Fund',quantity:1,unitPriceCents:100,categoryId:99},[1,2,3]).error);
 });
-// TODO: Add tests for body/name boundaries and at least one valid upper boundary.
+test('non-object bodies rejected',()=> {
+  for (const body of [null,undefined,[],'x',5,true]) {
+    assert.ok(validatePurchase(body,[1,2,3]).error);
+  }
+});
+test('name boundaries',()=> {
+  const ok=n=>validatePurchase({name:n,quantity:1,unitPriceCents:100,categoryId:1},[1,2,3]);
+  for (const n of ['','   ',undefined,null,5,'x'.repeat(101)]) assert.ok(ok(n).error);
+  assert.equal(ok('x').value.name,'x');
+  assert.equal(ok('x'.repeat(100)).value.name.length,100);
+  assert.equal(ok('  '+'x'.repeat(100)+'  ').value.name.length,100);
+});
+test('upper and lower boundaries are valid',()=> {
+  assert.deepEqual(validatePurchase({name:'A',quantity:10000,unitPriceCents:100000000,categoryId:3},[1,2,3]),
+    {value:{name:'A',quantity:10000,unitPriceCents:100000000,categoryId:3}});
+  assert.ok(validatePurchase({name:'A',quantity:1,unitPriceCents:1,categoryId:1},[1,2,3]).value);
+});
+test('category type and ignored extra fields',()=> {
+  for (const c of ['1',true,null,undefined,1.5,NaN]) {
+    assert.ok(validatePurchase({name:'A',quantity:1,unitPriceCents:1,categoryId:c},[1,2,3]).error);
+  }
+  const r=validatePurchase({name:'A',quantity:1,unitPriceCents:1,categoryId:1,ownerId:9,costCents:1,id:5},[1,2,3]);
+  assert.deepEqual(Object.keys(r.value).sort(),['categoryId','name','quantity','unitPriceCents']);
+});
