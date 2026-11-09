@@ -1,2 +1,130 @@
-body{font:16px/1.6 Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 20px;color:#202b33}section{margin:24px 0}label{display:block}input,select,button{font:inherit;padding:8px;margin:4px 8px 10px 0;max-width:100%;box-sizing:border-box}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #1367aa}li{margin-bottom:12px}[hidden]{display:none!important}button:disabled{opacity:.6}@media(max-width:500px){input,select{width:100%}}
-/* Keep or adapt your PA1 styles; preserve readable narrow-screen layout and visible focus. */
+/* INVESTMENT PURCHASE TRACKER - CSS TEMPLATE
+Complete H1-H8 first. Write each rule below its instruction comment.
+Save and reload after each step. The names below match index.html exactly.
+Use readable colors of your choice. The layout, spacing, and selectors are fixed.
+*/
+
+/* C1: PAGE DEFAULTS
+Use * to set box-sizing: border-box.
+For body: margin 0; font-family Arial, sans-serif; line-height 1.5;
+choose a dark text color and a light background color.
+For .container: width 92%; max-width 1050px; margin 0 auto.
+EXPECT: content is centered with side margins and uses a readable font.
+*/
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, sans-serif; line-height: 1.5; color: #1f2933; background: #eef2f6; }
+.container { width: 92%; max-width: 1050px; margin: 0 auto; }
+
+
+/* C2: HEADER AND HEADINGS
+.site-header: contrasting dark background/light text; padding 30px 0.
+.course-label: font-size 0.85rem; margin 0 0 8px.
+h1: font-size 2rem; margin 0 0 8px.
+h2: font-size 1.25rem; margin 0 0 18px.
+h3: font-size 1rem; margin 0 0 8px.
+EXPECT: the header and heading levels are visually distinct.
+*/
+.site-header { background: #14324a; color: #ffffff; padding: 30px 0; }
+.course-label { font-size: 0.85rem; margin: 0 0 8px; }
+h1 { font-size: 2rem; margin: 0 0 8px; }
+h2 { font-size: 1.25rem; margin: 0 0 18px; }
+h3 { font-size: 1rem; margin: 0 0 8px; }
+
+
+/* C3: MAIN LAYOUT AND PANELS
+.page-layout: display grid; grid-template-columns 0.85fr 1.15fr;
+gap 24px; padding-top 28px.
+.panel: min-width 0; white background; padding 24px;
+1px solid light-gray border; border-radius 8px.
+.purchases: grid-column 1 / -1.
+EXPECT on a wide screen: summary left, form right, history across both columns.
+*/
+.page-layout { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 24px; padding-top: 28px; }
+.panel { min-width: 0; background: #ffffff; padding: 24px; border: 1px solid #d5dbe1; border-radius: 8px; }
+.purchases { grid-column: 1 / -1; }
+
+
+/* C4: SUMMARY CARDS
+.balance-card: light background; border-radius 6px; padding 18px;
+margin-bottom 18px.
+.balance-value: font-size 2rem; font-weight bold; margin 0;
+overflow-wrap anywhere (prevents long values overflowing).
+.total-card: 1px solid light-gray border; padding 14px; border-radius 6px.
+.total-value: font-size 1.25rem; font-weight bold; margin 0;
+overflow-wrap anywhere.
+.hint: font-size 0.88rem; readable muted text color.
+EXPECT: total invested is prominent and the purchase count has its own card.
+*/
+.balance-card { background: #e3f0fa; border-radius: 6px; padding: 18px; margin-bottom: 18px; }
+.balance-value { font-size: 2rem; font-weight: bold; margin: 0; overflow-wrap: anywhere; }
+.total-card { border: 1px solid #d5dbe1; padding: 14px; border-radius: 6px; }
+.total-value { font-size: 1.25rem; font-weight: bold; margin: 0; overflow-wrap: anywhere; }
+.hint { font-size: 0.88rem; color: #52606d; }
+
+
+/* C5: FORM CONTROLS
+.form-field: margin-bottom 16px.
+label: display block; font-weight bold; margin-bottom 6px.
+input: width 100%; padding 11px; 1px solid visible border;
+border-radius 4px; font inherit; white background.
+.submit-button: dark background; light text; border 0;
+border-radius 4px; padding 12px 20px; font inherit; cursor pointer.
+.submit-button:hover: a different readable background color.
+Use the grouped selector input:focus-visible, button:focus-visible
+with a visible 3px solid outline and outline-offset 3px.
+.message: min-height 1.5em; margin-bottom 0; font-weight bold.
+EXPECT: full-width inputs and a readable button. Tab between controls:
+a visible outline identifies focus. An empty space is reserved for feedback.
+*/
+.form-field { margin-bottom: 16px; }
+label { display: block; font-weight: bold; margin-bottom: 6px; }
+input { width: 100%; padding: 11px; border: 1px solid #7b8794; border-radius: 4px; font: inherit; background: #ffffff; }
+.submit-button { background: #14324a; color: #ffffff; border: 0; border-radius: 4px; padding: 12px 20px; font: inherit; cursor: pointer; }
+.submit-button:hover { background: #2a6496; }
+input:focus-visible, button:focus-visible { outline: 3px solid #e08a00; outline-offset: 3px; }
+.message { min-height: 1.5em; margin-bottom: 0; font-weight: bold; }
+
+
+/* C6: HISTORY AND FOOTER
+.purchase-list: padding-left 22px; margin-bottom 0.
+.purchase-list li: padding 10px 0; 1px solid light-gray bottom border;
+overflow-wrap anywhere.
+.site-footer: padding-top 18px; padding-bottom 24px;
+font-size 0.88rem; readable muted text color.
+EXPECT: footer styling appears now. List-item styling becomes visible after J6.
+*/
+.purchase-list { padding-left: 22px; margin-bottom: 0; }
+.purchase-list li { padding: 10px 0; border-bottom: 1px solid #d5dbe1; overflow-wrap: anywhere; }
+.site-footer { padding-top: 18px; padding-bottom: 24px; font-size: 0.88rem; color: #52606d; }
+
+
+/* C7: RESPONSIVE LAYOUT
+Add @media (max-width: 700px). Inside it:
+  .page-layout has grid-template-columns: 1fr.
+  .panel has padding: 18px.
+Add @media (max-width: 450px). Inside it:
+  h1 has font-size: 1.6rem.
+EXPECT: below 700px, panels stack summary, form, then history.
+At about 390px wide, the page has no horizontal scrolling.
+Proceed to script.js after checking both wide and narrow windows.
+*/
+@media (max-width: 700px) {
+  .page-layout { grid-template-columns: 1fr; }
+  .panel { padding: 18px; }
+}
+@media (max-width: 450px) {
+  h1 { font-size: 1.6rem; }
+}
+
+
+/* PA2 additions: account panel, select, secondary buttons, hidden state */
+[hidden] { display: none !important; }
+.account { grid-column: 1 / -1; }
+select { width: 100%; padding: 11px; border: 1px solid #7b8794; border-radius: 4px; font: inherit; background: #ffffff; }
+select:focus-visible { outline: 3px solid #e08a00; outline-offset: 3px; }
+.button-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.secondary-button { background: #ffffff; color: #14324a; border: 1px solid #14324a; border-radius: 4px; padding: 12px 20px; font: inherit; cursor: pointer; }
+.secondary-button:hover { background: #e3f0fa; }
+.submit-button:disabled, .secondary-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.purchase-list li button { margin-left: 8px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.message.error { color: #b42318; }
